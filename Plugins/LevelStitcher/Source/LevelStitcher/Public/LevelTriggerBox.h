@@ -12,9 +12,11 @@
 UCLASS()
 class LEVELSTITCHER_API ALevelTriggerBox : public ATriggerBox
 {
-	GENERATED_BODY()
+	GENERATED_BODY()	
 	
 public:
+	ALevelTriggerBox();
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Levels")
 	TSoftObjectPtr<UWorld> Sublevel;
 
