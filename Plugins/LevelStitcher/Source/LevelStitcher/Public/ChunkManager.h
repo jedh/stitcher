@@ -37,7 +37,7 @@ protected:
 
 	class APlayerController* PlayerRef;
 
-	FVector PrevPlayerLocation;
+	FVector PrevCameraLocation;
 
 public:
 	// Called every frame
