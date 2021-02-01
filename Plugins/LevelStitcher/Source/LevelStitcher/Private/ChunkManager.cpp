@@ -9,6 +9,8 @@
 #include "ChunkFloorTile.h"
 #include "Components/BoxComponent.h"
 #include "ChunkBoundCollider.h"
+#include "Kismet/GameplayStatics.h"
+#include "Engine/LevelStreamingDynamic.h"
 //#include "Kismet/GameplayStatics.h"
 
 #define COLLISION_FLOOR		ECC_GameTraceChannel1
@@ -21,10 +23,16 @@ AChunkManager::AChunkManager()
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 
 	TopSphereDetector = CreateDefaultSubobject<USphereComponent>(TEXT("TopSphereDetector"));
+	//TopSphereDetector->BodyInstance.SetCollisionProfileName("DetectLevels");
 	TopSphereDetector->SetupAttachment(RootComponent);
-
+	TopSphereDetector->OnComponentBeginOverlap.AddDynamic(this, &AChunkManager::OnTopDetectorBeginOverlap);
+	TopSphereDetector->OnComponentEndOverlap.AddDynamic(this, &AChunkManager::OnTopDetectorEndOverlap);
+	
 	BottomSphereDetector = CreateDefaultSubobject<USphereComponent>(TEXT("BottomSphereDetector"));
+	//BottomSphereDetector->BodyInstance.SetCollisionProfileName("DetectLevels");
 	BottomSphereDetector->SetupAttachment(RootComponent);
+	BottomSphereDetector->OnComponentBeginOverlap.AddDynamic(this, &AChunkManager::OnBottomDetectorBeginOverlap);
+	BottomSphereDetector->OnComponentEndOverlap.AddDynamic(this, &AChunkManager::OnBottomDetectorEndOverlap);
 }
 
 // Called when the game starts or when spawned
@@ -46,7 +54,20 @@ void AChunkManager::BeginPlay()
 			SetDetectorLocations(PlayerRef);
 
 			// Check if the player is currently overlapping with a LevelTriggerBox and spawn it in.
-			
+			TArray<AActor*> OverlappingActors;			
+			PlayerRef->GetPawn()->GetOverlappingActors(OverlappingActors, ALevelTriggerBox::StaticClass());			
+			for (int i = 0; i < OverlappingActors.Num(); i++)
+			{
+				ALevelTriggerBox* LevelTrigger = Cast<ALevelTriggerBox>(OverlappingActors[i]);
+				if (LevelTrigger != nullptr)
+				{
+					TrySpawnSublevel(LevelTrigger);
+				}
+			}
+
+			// For whatever reason, setting this in the constructor messes with GetOverlappingActors.
+			TopSphereDetector->BodyInstance.SetCollisionProfileName("DetectLevels");
+			BottomSphereDetector->BodyInstance.SetCollisionProfileName("DetectLevels");
 
 			//PrevCameraLocation = PlayerRef->GetPawn()->GetActorLocation();
 		}
@@ -65,6 +86,64 @@ void AChunkManager::Tick(float DeltaTime)
 		SetDetectorLocations(PlayerRef);
 	}
 
+}
+
+void AChunkManager::OnTopDetectorBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	ALevelTriggerBox* LevelTrigger = Cast<ALevelTriggerBox>(OtherActor);
+	if (LevelTrigger != nullptr)
+	{
+		UBoxComponent* BoxCollsion = Cast<UBoxComponent>(LevelTrigger->GetCollisionComponent());
+		if (BoxCollsion != nullptr &&
+			TopSphereDetector->GetComponentLocation().X < (BoxCollsion->GetComponentLocation().X + BoxCollsion->GetScaledBoxExtent().X))
+		{
+			TrySpawnSublevel(LevelTrigger);
+		}		
+	}
+}
+
+void AChunkManager::OnTopDetectorEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	ALevelTriggerBox* LevelTrigger = Cast<ALevelTriggerBox>(OtherActor);
+	if (LevelTrigger != nullptr)
+	{
+		UBoxComponent* BoxCollsion = Cast<UBoxComponent>(LevelTrigger->GetCollisionComponent());
+		if (BoxCollsion != nullptr &&
+			TopSphereDetector->GetComponentLocation().X <= (BoxCollsion->GetComponentLocation().X - BoxCollsion->GetScaledBoxExtent().X))
+		{
+			FLatentActionInfo Info;			
+			UGameplayStatics::UnloadStreamLevel(GetWorld(), FName(LevelTrigger->SublevelInstanceName), Info, false);
+		}
+	}
+}
+
+void AChunkManager::OnBottomDetectorBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
+{
+	ALevelTriggerBox* LevelTrigger = Cast<ALevelTriggerBox>(OtherActor);
+	if (LevelTrigger != nullptr)
+	{
+		UBoxComponent* BoxCollsion = Cast<UBoxComponent>(LevelTrigger->GetCollisionComponent());
+		if (BoxCollsion != nullptr &&
+			BottomSphereDetector->GetComponentLocation().X > (BoxCollsion->GetComponentLocation().X - BoxCollsion->GetScaledBoxExtent().X))
+		{
+			TrySpawnSublevel(LevelTrigger);
+		}
+	}
+}
+
+void AChunkManager::OnBottomDetectorEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+	ALevelTriggerBox* LevelTrigger = Cast<ALevelTriggerBox>(OtherActor);
+	if (LevelTrigger != nullptr)
+	{
+		UBoxComponent* BoxCollsion = Cast<UBoxComponent>(LevelTrigger->GetCollisionComponent());
+		if (BoxCollsion != nullptr &&
+			BottomSphereDetector->GetComponentLocation().X >= (BoxCollsion->GetComponentLocation().X + BoxCollsion->GetScaledBoxExtent().X))
+		{
+			FLatentActionInfo Info;
+			UGameplayStatics::UnloadStreamLevel(GetWorld(), FName(LevelTrigger->SublevelInstanceName), Info, false);
+		}
+	}
 }
 
 void AChunkManager::LoadLevelTriggerVolumes(const UChunkContainerDataAsset* ChunkContainerDataAsset)
@@ -178,8 +257,32 @@ void AChunkManager::SetDetectorLocations(const APlayerController* Player)
 	BottomSphereDetector->SetWorldLocation(BottomSphereLocation, true);
 }
 
-void AChunkManager::TrySpawnSublevel(const ALevelTriggerBox* LevelTrigger)
-{
+void AChunkManager::TrySpawnSublevel(ALevelTriggerBox* LevelTrigger)
+{	
+	if (LevelTrigger->SublevelInstanceName.IsEmpty())
+	{
+		// Generate sublevel name.
+		FString LevelName = "Sublevel";
+		LevelName += FString::FromInt(LevelTrigger->SublevelIndex);
+		LevelName += "_";
+		LevelName += FGuid::NewGuid().ToString();
+		LevelTrigger->SublevelInstanceName = LevelName;
 
+		// Load level instance as this is the first time loading it..	
+		bool IsLoaded;
+		ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(
+			GetWorld(), 
+			LevelTrigger->Sublevel, 
+			LevelTrigger->GetActorLocation(), 
+			FRotator::ZeroRotator, 
+			IsLoaded,
+			LevelTrigger->SublevelInstanceName);
+	}
+	else
+	{
+		// Stream the existing sublevel.
+		FLatentActionInfo Info;
+		UGameplayStatics::LoadStreamLevel(GetWorld(), FName(LevelTrigger->SublevelInstanceName), true, false, Info);
+	}
 }
 
