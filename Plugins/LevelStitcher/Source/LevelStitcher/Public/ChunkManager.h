@@ -31,6 +31,8 @@ protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Detection", meta = (AllowPrivateAccess = "true"))
 	class USphereComponent* BottomSphereDetector;
 
+	class UChunkWorldSubsystem* ChunkSubsystem;
+
 	float ProjectionDistanceTop;
 
 	float ProjectionDistanceBottom;	

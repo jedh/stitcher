@@ -11,6 +11,7 @@
 #include "ChunkBoundCollider.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/LevelStreamingDynamic.h"
+#include "ChunkWorldSubsystem.h"
 //#include "Kismet/GameplayStatics.h"
 
 #define COLLISION_FLOOR		ECC_GameTraceChannel1
@@ -40,6 +41,8 @@ void AChunkManager::BeginPlay()
 {
 	Super::BeginPlay();
 	
+	ChunkSubsystem = GetWorld()->GetSubsystem<UChunkWorldSubsystem>();
+
 	FTimerHandle Handle;
 	GetWorldTimerManager().SetTimer(Handle, [this] () {
 		//UGameplayStatics::GetPlayerController(this, 0);
@@ -113,6 +116,10 @@ void AChunkManager::OnTopDetectorEndOverlap(UPrimitiveComponent* OverlappedComp,
 		{
 			FLatentActionInfo Info;			
 			UGameplayStatics::UnloadStreamLevel(GetWorld(), FName(LevelTrigger->SublevelInstanceName), Info, false);
+			if (ChunkSubsystem != nullptr)
+			{
+				ChunkSubsystem->NotifySublevelUnloaded(LevelTrigger->SublevelInstanceName, LevelTrigger->SublevelIndex);
+			}
 		}
 	}
 }
@@ -142,6 +149,10 @@ void AChunkManager::OnBottomDetectorEndOverlap(UPrimitiveComponent* OverlappedCo
 		{
 			FLatentActionInfo Info;
 			UGameplayStatics::UnloadStreamLevel(GetWorld(), FName(LevelTrigger->SublevelInstanceName), Info, false);
+			if (ChunkSubsystem != nullptr)
+			{
+				ChunkSubsystem->NotifySublevelUnloaded(LevelTrigger->SublevelInstanceName, LevelTrigger->SublevelIndex);
+			}
 		}
 	}
 }
@@ -259,6 +270,7 @@ void AChunkManager::SetDetectorLocations(const APlayerController* Player)
 
 void AChunkManager::TrySpawnSublevel(ALevelTriggerBox* LevelTrigger)
 {	
+	bool IsLoaded = true;
 	if (LevelTrigger->SublevelInstanceName.IsEmpty())
 	{
 		// Generate sublevel name.
@@ -268,8 +280,7 @@ void AChunkManager::TrySpawnSublevel(ALevelTriggerBox* LevelTrigger)
 		LevelName += FGuid::NewGuid().ToString();
 		LevelTrigger->SublevelInstanceName = LevelName;
 
-		// Load level instance as this is the first time loading it..	
-		bool IsLoaded;
+		// Load level instance as this is the first time loading it..			
 		ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(
 			GetWorld(), 
 			LevelTrigger->Sublevel, 
@@ -282,7 +293,12 @@ void AChunkManager::TrySpawnSublevel(ALevelTriggerBox* LevelTrigger)
 	{
 		// Stream the existing sublevel.
 		FLatentActionInfo Info;
-		UGameplayStatics::LoadStreamLevel(GetWorld(), FName(LevelTrigger->SublevelInstanceName), true, false, Info);
+		UGameplayStatics::LoadStreamLevel(GetWorld(), FName(LevelTrigger->SublevelInstanceName), true, false, Info);		
+	}
+
+	if (IsLoaded && ChunkSubsystem != nullptr)
+	{
+		ChunkSubsystem->NotifySublevelLoaded(LevelTrigger->SublevelInstanceName, LevelTrigger->SublevelIndex);
 	}
 }
 
