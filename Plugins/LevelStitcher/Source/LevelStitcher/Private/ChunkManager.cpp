@@ -12,6 +12,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "ChunkWorldSubsystem.h"
+#include "ChunkSphereDetector.h"
 //#include "Kismet/GameplayStatics.h"
 
 #define COLLISION_FLOOR		ECC_GameTraceChannel1
@@ -19,17 +20,17 @@
 // Sets default values
 AChunkManager::AChunkManager()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 
-	TopSphereDetector = CreateDefaultSubobject<USphereComponent>(TEXT("TopSphereDetector"));
+	TopSphereDetector = CreateDefaultSubobject<UChunkSphereDetector>(TEXT("TopSphereDetector"));
 	//TopSphereDetector->BodyInstance.SetCollisionProfileName("DetectLevels");
 	TopSphereDetector->SetupAttachment(RootComponent);
 	TopSphereDetector->OnComponentBeginOverlap.AddDynamic(this, &AChunkManager::OnTopDetectorBeginOverlap);
 	TopSphereDetector->OnComponentEndOverlap.AddDynamic(this, &AChunkManager::OnTopDetectorEndOverlap);
-	
-	BottomSphereDetector = CreateDefaultSubobject<USphereComponent>(TEXT("BottomSphereDetector"));
+
+	BottomSphereDetector = CreateDefaultSubobject<UChunkSphereDetector>(TEXT("BottomSphereDetector"));
 	//BottomSphereDetector->BodyInstance.SetCollisionProfileName("DetectLevels");
 	BottomSphereDetector->SetupAttachment(RootComponent);
 	BottomSphereDetector->OnComponentBeginOverlap.AddDynamic(this, &AChunkManager::OnBottomDetectorBeginOverlap);
@@ -40,11 +41,11 @@ AChunkManager::AChunkManager()
 void AChunkManager::BeginPlay()
 {
 	Super::BeginPlay();
-	
+
 	ChunkSubsystem = GetWorld()->GetSubsystem<UChunkWorldSubsystem>();
 
 	FTimerHandle Handle;
-	GetWorldTimerManager().SetTimer(Handle, [this] () {
+	GetWorldTimerManager().SetTimer(Handle, [this]() {
 		//UGameplayStatics::GetPlayerController(this, 0);
 		PlayerRef = GEngine->GetFirstLocalPlayerController(GetWorld());
 
@@ -57,8 +58,8 @@ void AChunkManager::BeginPlay()
 			SetDetectorLocations(PlayerRef);
 
 			// Check if the player is currently overlapping with a LevelTriggerBox and spawn it in.
-			TArray<AActor*> OverlappingActors;			
-			PlayerRef->GetPawn()->GetOverlappingActors(OverlappingActors, ALevelTriggerBox::StaticClass());			
+			TArray<AActor*> OverlappingActors;
+			PlayerRef->GetPawn()->GetOverlappingActors(OverlappingActors, ALevelTriggerBox::StaticClass());
 			for (int i = 0; i < OverlappingActors.Num(); i++)
 			{
 				ALevelTriggerBox* LevelTrigger = Cast<ALevelTriggerBox>(OverlappingActors[i]);
@@ -74,7 +75,7 @@ void AChunkManager::BeginPlay()
 
 			//PrevCameraLocation = PlayerRef->GetPawn()->GetActorLocation();
 		}
-	}, 0.33f, false);	
+		}, 0.33f, false);
 }
 
 // Called every frame
@@ -93,6 +94,12 @@ void AChunkManager::Tick(float DeltaTime)
 
 void AChunkManager::OnTopDetectorBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+	if (TopSphereDetector->GetLoadBehaviour() == EDetectorLoadBehaviour::UNLOAD_ONLY ||
+		TopSphereDetector->GetLoadBehaviour() == EDetectorLoadBehaviour::NONE)
+	{
+		return;
+	}
+
 	ALevelTriggerBox* LevelTrigger = Cast<ALevelTriggerBox>(OtherActor);
 	if (LevelTrigger != nullptr)
 	{
@@ -101,12 +108,18 @@ void AChunkManager::OnTopDetectorBeginOverlap(UPrimitiveComponent* OverlappedCom
 			TopSphereDetector->GetComponentLocation().X < (BoxCollsion->GetComponentLocation().X + BoxCollsion->GetScaledBoxExtent().X))
 		{
 			TrySpawnSublevel(LevelTrigger);
-		}		
+		}
 	}
 }
 
 void AChunkManager::OnTopDetectorEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
+	if (TopSphereDetector->GetLoadBehaviour() == EDetectorLoadBehaviour::LOAD_ONLY ||
+		TopSphereDetector->GetLoadBehaviour() == EDetectorLoadBehaviour::NONE)
+	{
+		return;
+	}
+
 	ALevelTriggerBox* LevelTrigger = Cast<ALevelTriggerBox>(OtherActor);
 	if (LevelTrigger != nullptr)
 	{
@@ -114,7 +127,7 @@ void AChunkManager::OnTopDetectorEndOverlap(UPrimitiveComponent* OverlappedComp,
 		if (BoxCollsion != nullptr &&
 			TopSphereDetector->GetComponentLocation().X <= (BoxCollsion->GetComponentLocation().X - BoxCollsion->GetScaledBoxExtent().X))
 		{
-			FLatentActionInfo Info;			
+			FLatentActionInfo Info;
 			UGameplayStatics::UnloadStreamLevel(GetWorld(), FName(LevelTrigger->SublevelInstanceName), Info, false);
 			if (ChunkSubsystem != nullptr)
 			{
@@ -126,6 +139,13 @@ void AChunkManager::OnTopDetectorEndOverlap(UPrimitiveComponent* OverlappedComp,
 
 void AChunkManager::OnBottomDetectorBeginOverlap(UPrimitiveComponent* OverlappedComponent, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
+
+	if (BottomSphereDetector->GetLoadBehaviour() == EDetectorLoadBehaviour::UNLOAD_ONLY ||
+		BottomSphereDetector->GetLoadBehaviour() == EDetectorLoadBehaviour::NONE)
+	{
+		return;
+	}
+
 	ALevelTriggerBox* LevelTrigger = Cast<ALevelTriggerBox>(OtherActor);
 	if (LevelTrigger != nullptr)
 	{
@@ -140,6 +160,12 @@ void AChunkManager::OnBottomDetectorBeginOverlap(UPrimitiveComponent* Overlapped
 
 void AChunkManager::OnBottomDetectorEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
+	if (BottomSphereDetector->GetLoadBehaviour() == EDetectorLoadBehaviour::LOAD_ONLY ||
+		BottomSphereDetector->GetLoadBehaviour() == EDetectorLoadBehaviour::NONE)
+	{
+		return;
+	}
+
 	ALevelTriggerBox* LevelTrigger = Cast<ALevelTriggerBox>(OtherActor);
 	if (LevelTrigger != nullptr)
 	{
@@ -163,7 +189,7 @@ void AChunkManager::LoadLevelTriggerVolumes(const UChunkContainerDataAsset* Chun
 	float SpawnOffsetZ = 16.0f;
 
 	for (int i = 0; i < ChunkContainerDataAsset->SublevelMaps.Num(); i++)
-	{		
+	{
 		float SpawnPositionX = ChunkContainerDataAsset->SublevelExtents.X * 2 * i;
 		FVector SpawnLocation = FVector(SpawnPositionX, 0.0f, -SpawnOffsetZ);
 
@@ -203,7 +229,7 @@ void AChunkManager::LoadLevelTriggerVolumes(const UChunkContainerDataAsset* Chun
 
 	FVector EndColliderExtent = ChunkContainerDataAsset->SublevelExtents;
 	EndColliderExtent.X = WallBoundWidth;
-	
+
 	// Spawn top collider for the level.
 	float TopColliderPositionX = (ChunkContainerDataAsset->SublevelExtents.X * 2.0f) * ChunkContainerDataAsset->SublevelMaps.Num();
 	TopColliderPositionX = TopColliderPositionX - ChunkContainerDataAsset->SublevelExtents.X;
@@ -215,7 +241,7 @@ void AChunkManager::LoadLevelTriggerVolumes(const UChunkContainerDataAsset* Chun
 	float BottomColliderPositionX = -ChunkContainerDataAsset->SublevelExtents.X;
 	FVector BottomColliderPosition = FVector(BottomColliderPositionX, 0.0f, 0.0f);
 	AChunkBoundCollider* BottomCollider = World->SpawnActor<AChunkBoundCollider>(BottomColliderPosition, FRotator::ZeroRotator);
-	BottomCollider->SetBoundExtent(EndColliderExtent);	
+	BottomCollider->SetBoundExtent(EndColliderExtent);
 }
 
 void AChunkManager::SetDetectorProjectionDistances(const APlayerController* Player)
@@ -226,7 +252,7 @@ void AChunkManager::SetDetectorProjectionDistances(const APlayerController* Play
 	FVector TopWorldPosition;
 	FVector TopWorldDirection;
 	Player->DeprojectScreenPositionToWorld(ViewportSize.X * 0.5f, 0.0f, TopWorldPosition, TopWorldDirection);
-	FHitResult TopHitResult;	
+	FHitResult TopHitResult;
 	if (GetWorld()->LineTraceSingleByChannel(
 		TopHitResult,
 		TopWorldPosition,
@@ -239,7 +265,7 @@ void AChunkManager::SetDetectorProjectionDistances(const APlayerController* Play
 	// Get bottom distance.
 	FVector BottomWorldPosition;
 	FVector BottomWorldDirection;
-	Player->DeprojectScreenPositionToWorld(ViewportSize.X * 0.5f, ViewportSize.Y, BottomWorldPosition, BottomWorldDirection);	
+	Player->DeprojectScreenPositionToWorld(ViewportSize.X * 0.5f, ViewportSize.Y, BottomWorldPosition, BottomWorldDirection);
 	FHitResult BottomHitResult;
 	if (GetWorld()->LineTraceSingleByChannel(
 		BottomHitResult,
@@ -254,7 +280,7 @@ void AChunkManager::SetDetectorProjectionDistances(const APlayerController* Play
 void AChunkManager::SetDetectorLocations(const APlayerController* Player)
 {
 	FVector2D ViewportSize = GEngine->GameViewport->Viewport->GetSizeXY();
-	
+
 	FVector TopWorldPosition;
 	FVector TopWorldDirection;
 	Player->DeprojectScreenPositionToWorld(ViewportSize.X * 0.5f, 0.0f, TopWorldPosition, TopWorldDirection);
@@ -269,7 +295,7 @@ void AChunkManager::SetDetectorLocations(const APlayerController* Player)
 }
 
 void AChunkManager::TrySpawnSublevel(ALevelTriggerBox* LevelTrigger)
-{	
+{
 	bool IsLoaded = true;
 	if (LevelTrigger->SublevelInstanceName.IsEmpty())
 	{
@@ -282,10 +308,10 @@ void AChunkManager::TrySpawnSublevel(ALevelTriggerBox* LevelTrigger)
 
 		// Load level instance as this is the first time loading it..			
 		ULevelStreamingDynamic::LoadLevelInstanceBySoftObjectPtr(
-			GetWorld(), 
-			LevelTrigger->Sublevel, 
-			LevelTrigger->GetActorLocation(), 
-			FRotator::ZeroRotator, 
+			GetWorld(),
+			LevelTrigger->Sublevel,
+			LevelTrigger->GetActorLocation(),
+			FRotator::ZeroRotator,
 			IsLoaded,
 			LevelTrigger->SublevelInstanceName);
 	}
@@ -293,7 +319,7 @@ void AChunkManager::TrySpawnSublevel(ALevelTriggerBox* LevelTrigger)
 	{
 		// Stream the existing sublevel.
 		FLatentActionInfo Info;
-		UGameplayStatics::LoadStreamLevel(GetWorld(), FName(LevelTrigger->SublevelInstanceName), true, false, Info);		
+		UGameplayStatics::LoadStreamLevel(GetWorld(), FName(LevelTrigger->SublevelInstanceName), true, false, Info);
 	}
 
 	if (IsLoaded && ChunkSubsystem != nullptr)

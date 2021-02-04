@@ -25,11 +25,11 @@ public:
 	float WallBoundWidth;
 
 protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Detection", meta = (AllowPrivateAccess = "true"))
-	class USphereComponent* TopSphereDetector;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Detection", meta = (AllowPrivateAccess = "true"))
+	class UChunkSphereDetector* TopSphereDetector;
 	
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Detection", meta = (AllowPrivateAccess = "true"))
-	class USphereComponent* BottomSphereDetector;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Detection", meta = (AllowPrivateAccess = "true"))
+	class UChunkSphereDetector* BottomSphereDetector;
 
 	class UChunkWorldSubsystem* ChunkSubsystem;
 
