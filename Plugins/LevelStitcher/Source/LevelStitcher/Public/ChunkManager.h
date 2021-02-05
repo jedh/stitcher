@@ -24,6 +24,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dimensions")
 	float WallBoundWidth;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision Channels")
+	TEnumAsByte<ECollisionChannel> DetectorCollisionChannel;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision Channels")
+	TEnumAsByte<ECollisionChannel> LevelTriggerCollisionChannel;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision Channels")
+	TEnumAsByte<ECollisionChannel> FloorCollisionChannel;
+
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Detection", meta = (AllowPrivateAccess = "true"))
 	class UChunkSphereDetector* TopSphereDetector;

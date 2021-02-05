@@ -18,7 +18,12 @@
 		{
 			"Name": "LevelStitcher",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [
+				"Win64",
+				"Win32",
+				"Mac"
+			]
 		}
 	]
 }

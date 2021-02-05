@@ -7,30 +7,20 @@
 // Sets default values
 AChunkFloorTile::AChunkFloorTile()
 {
- 	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
+	//Set this actor to call Tick() every frame.You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = false;
 
-	CollisionComp = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComp"));
-	CollisionComp->BodyInstance.SetCollisionProfileName("Floor");
-	RootComponent = CollisionComp;	
-}
-
-// Called when the game starts or when spawned	
-void AChunkFloorTile::BeginPlay()
-{
-	Super::BeginPlay();
-	
-}
-
-// Called every frame
-void AChunkFloorTile::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
-
+	CollisionComp = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComp"));	
+	RootComponent = CollisionComp;
 }
 
 void AChunkFloorTile::SetFloorExtent(FVector InExtent)
 {
 	CollisionComp->SetBoxExtent(InExtent);
+}
+
+void AChunkFloorTile::SetFloorCollisionChannel(ECollisionChannel CollisionChannel)
+{
+	CollisionComp->SetCollisionObjectType(CollisionChannel);
 }
 

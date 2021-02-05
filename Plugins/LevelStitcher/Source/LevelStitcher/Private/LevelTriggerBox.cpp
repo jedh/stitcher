@@ -5,6 +5,5 @@
 #include "Components/ShapeComponent.h"
 
 ALevelTriggerBox::ALevelTriggerBox()
-{
-	GetCollisionComponent()->BodyInstance.SetCollisionProfileName("LevelVolume");
+{	
 }

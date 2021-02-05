@@ -20,13 +20,9 @@ protected:
 	class UBoxComponent* CollisionComp;
 
 public:	
-	// Called every frame
-	virtual void Tick(float DeltaTime) override;
-
 	UFUNCTION(BlueprintCallable, Category = "Size")
 	void SetFloorExtent(FVector InExtent);
 
-protected:
-	// Called when the game starts or when spawned
-	virtual void BeginPlay() override;
+	UFUNCTION(BlueprintCallable, Category = "Collision")
+	void SetFloorCollisionChannel(ECollisionChannel CollisionChannel);
 };

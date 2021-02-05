@@ -13,9 +13,9 @@
 #include "Engine/LevelStreamingDynamic.h"
 #include "ChunkWorldSubsystem.h"
 #include "ChunkSphereDetector.h"
+#include "Engine.h"
+#include "Engine/EngineTypes.h"
 //#include "Kismet/GameplayStatics.h"
-
-#define COLLISION_FLOOR		ECC_GameTraceChannel1
 
 // Sets default values
 AChunkManager::AChunkManager()
@@ -25,13 +25,13 @@ AChunkManager::AChunkManager()
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 
 	TopSphereDetector = CreateDefaultSubobject<UChunkSphereDetector>(TEXT("TopSphereDetector"));
-	//TopSphereDetector->BodyInstance.SetCollisionProfileName("DetectLevels");
+	//TopSphereDetector->SetCollisionObjectType(DetectorCollisionChannel);
 	TopSphereDetector->SetupAttachment(RootComponent);
 	TopSphereDetector->OnComponentBeginOverlap.AddDynamic(this, &AChunkManager::OnTopDetectorBeginOverlap);
 	TopSphereDetector->OnComponentEndOverlap.AddDynamic(this, &AChunkManager::OnTopDetectorEndOverlap);
 
 	BottomSphereDetector = CreateDefaultSubobject<UChunkSphereDetector>(TEXT("BottomSphereDetector"));
-	//BottomSphereDetector->BodyInstance.SetCollisionProfileName("DetectLevels");
+	//BottomSphereDetector->SetCollisionObjectType(DetectorCollisionChannel);
 	BottomSphereDetector->SetupAttachment(RootComponent);
 	BottomSphereDetector->OnComponentBeginOverlap.AddDynamic(this, &AChunkManager::OnBottomDetectorBeginOverlap);
 	BottomSphereDetector->OnComponentEndOverlap.AddDynamic(this, &AChunkManager::OnBottomDetectorEndOverlap);
@@ -70,8 +70,8 @@ void AChunkManager::BeginPlay()
 			}
 
 			// For whatever reason, setting this in the constructor messes with GetOverlappingActors.
-			TopSphereDetector->BodyInstance.SetCollisionProfileName("DetectLevels");
-			BottomSphereDetector->BodyInstance.SetCollisionProfileName("DetectLevels");
+			TopSphereDetector->SetCollisionObjectType(DetectorCollisionChannel);
+			BottomSphereDetector->SetCollisionObjectType(DetectorCollisionChannel);
 
 			//PrevCameraLocation = PlayerRef->GetPawn()->GetActorLocation();
 		}
@@ -193,23 +193,38 @@ void AChunkManager::LoadLevelTriggerVolumes(const UChunkContainerDataAsset* Chun
 		float SpawnPositionX = ChunkContainerDataAsset->SublevelExtents.X * 2 * i;
 		FVector SpawnLocation = FVector(SpawnPositionX, 0.0f, -SpawnOffsetZ);
 
-		// Spawn chunk floor tiles.
-		AChunkFloorTile* FloorTile = World->SpawnActor<AChunkFloorTile>(SpawnLocation, FRotator::ZeroRotator);
+		// Spawn chunk floor tiles.		
+		//AChunkFloorTile* FloorTile = World->SpawnActor<AChunkFloorTile>(SpawnLocation, FRotator::ZeroRotator);
+		FTransform FloorSpawnTransform(FRotator::ZeroRotator, SpawnLocation);		
+		AChunkFloorTile* FloorTile = World->SpawnActorDeferred<AChunkFloorTile>(AChunkFloorTile::StaticClass(), FloorSpawnTransform);
+		if (FloorTile != nullptr)
+		{
+			FloorTile->SetFloorCollisionChannel(FloorCollisionChannel);
+			FVector FloorExtents = ChunkContainerDataAsset->SublevelExtents;
+			FloorExtents.Z = SpawnOffsetZ;
+			FloorTile->SetFloorExtent(FloorExtents);
 
-		FVector FloorExtents = ChunkContainerDataAsset->SublevelExtents;
-		FloorExtents.Z = SpawnOffsetZ;
-		FloorTile->SetFloorExtent(FloorExtents);
+			UGameplayStatics::FinishSpawningActor(FloorTile, FloorSpawnTransform);
+		}		
 
 		// Spawn the chunk trigger box. 
 		SpawnLocation.Z = 0.0f;
-		ALevelTriggerBox* ChunkTriggerBox = World->SpawnActor<ALevelTriggerBox>(SpawnLocation, FRotator::ZeroRotator);
-		ChunkTriggerBox->Sublevel = ChunkContainerDataAsset->SublevelMaps[i];
-		ChunkTriggerBox->SublevelIndex = i;
-		UBoxComponent* CollisionComponent = Cast<UBoxComponent>(ChunkTriggerBox->GetCollisionComponent());
-		if (CollisionComponent != nullptr)
+		FTransform LevelTriggerSpawnTransform(FRotator::ZeroRotator, SpawnLocation);
+		//ALevelTriggerBox* ChunkTriggerBox = World->SpawnActor<ALevelTriggerBox>(SpawnLocation, FRotator::ZeroRotator);
+		ALevelTriggerBox* ChunkTriggerBox = World->SpawnActorDeferred<ALevelTriggerBox>(ALevelTriggerBox::StaticClass(), LevelTriggerSpawnTransform);
+		if (ChunkTriggerBox != nullptr)
 		{
-			CollisionComponent->SetBoxExtent(ChunkContainerDataAsset->SublevelExtents);
-		}
+			ChunkTriggerBox->GetCollisionComponent()->SetCollisionObjectType(LevelTriggerCollisionChannel);
+			ChunkTriggerBox->Sublevel = ChunkContainerDataAsset->SublevelMaps[i];
+			ChunkTriggerBox->SublevelIndex = i;
+			UBoxComponent* CollisionComponent = Cast<UBoxComponent>(ChunkTriggerBox->GetCollisionComponent());
+			if (CollisionComponent != nullptr)
+			{
+				CollisionComponent->SetBoxExtent(ChunkContainerDataAsset->SublevelExtents);
+			}
+
+			UGameplayStatics::FinishSpawningActor(ChunkTriggerBox, LevelTriggerSpawnTransform);
+		}				
 
 		FVector SideColliderExtent = ChunkContainerDataAsset->SublevelExtents;
 		SideColliderExtent.Y = WallBoundWidth;
@@ -257,7 +272,7 @@ void AChunkManager::SetDetectorProjectionDistances(const APlayerController* Play
 		TopHitResult,
 		TopWorldPosition,
 		TopWorldPosition + (TopWorldDirection * 2000.0f),
-		COLLISION_FLOOR))
+		FloorCollisionChannel))
 	{
 		ProjectionDistanceTop = TopHitResult.Distance;
 	}
@@ -270,8 +285,8 @@ void AChunkManager::SetDetectorProjectionDistances(const APlayerController* Play
 	if (GetWorld()->LineTraceSingleByChannel(
 		BottomHitResult,
 		BottomWorldPosition,
-		BottomWorldPosition + (BottomWorldDirection * 2000.0f),
-		COLLISION_FLOOR))
+		BottomWorldPosition + (BottomWorldDirection * 2000.0f), 
+		FloorCollisionChannel))
 	{
 		ProjectionDistanceBottom = BottomHitResult.Distance;
 	}
