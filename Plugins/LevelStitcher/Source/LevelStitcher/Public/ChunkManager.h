@@ -50,6 +50,10 @@ protected:
 
 	FVector PrevCameraLocation;
 
+	int LevelInstansiatedCounter = 0;
+
+	TArray<class ULevelStreaming*> LoadingLevelsArray;
+
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
@@ -77,4 +81,7 @@ protected:
 	void SetDetectorLocations(const class APlayerController* Player);
 
 	void TrySpawnSublevel(class ALevelTriggerBox* LevelTrigger);
+	
+	UFUNCTION()
+	void LevelLoadingFinished();
 };
