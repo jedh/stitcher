@@ -58,6 +58,12 @@ public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	float GetProjectionDistanceTop() const { return ProjectionDistanceTop; }
+
+	UFUNCTION(BlueprintCallable, BlueprintPure)
+	float GetProjectionDistanceBottom() const { return ProjectionDistanceBottom; }
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

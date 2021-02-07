@@ -50,14 +50,13 @@ void AChunkManager::BeginPlay()
 		LevelArraySize = LevelChunkContainerDataAsset->SublevelMaps.Num();
 	}
 
-	LoadingLevelsArray.Init(nullptr, LevelArraySize);
-	//StreamingLevelsArray.Init(nullptr, LevelArraySize);
+	LoadingLevelsArray.Init(nullptr, LevelArraySize);	
 
 	ChunkSubsystem = GetWorld()->GetSubsystem<UChunkWorldSubsystem>();
 
 	FTimerHandle Handle;
-	GetWorldTimerManager().SetTimer(Handle, [this]() {
-		//UGameplayStatics::GetPlayerController(this, 0);
+	// We need a slight delay in order for the camera to be ready for projections.
+	GetWorldTimerManager().SetTimer(Handle, [this]() {		
 		PlayerRef = GEngine->GetFirstLocalPlayerController(GetWorld());
 
 		if (PlayerRef != nullptr)
@@ -73,8 +72,7 @@ void AChunkManager::BeginPlay()
 			{
 				ALevelTriggerBox* LevelTrigger = *TriggerItr;
 				if (TopSphereDetector->IsOverlappingActor(LevelTrigger) || BottomSphereDetector->IsOverlappingActor(LevelTrigger))
-				{
-					UE_LOG(LogTemp, Warning, TEXT("OVERLAPPING ON START: %s"), *LevelTrigger->GetActorLocation().ToString());
+				{					
 					TrySpawnSublevel(LevelTrigger);
 				}
 				else
@@ -90,32 +88,12 @@ void AChunkManager::BeginPlay()
 						float BottomDetectorLocationX = BottomSphereDetector->GetComponentLocation().X;
 						if ((LevelTriggerTop <= TopDetectorLocationX && LevelTriggerTop > BottomDetectorLocationX) ||
 							(LevelTriggerBottom >= BottomDetectorLocationX && LevelTriggerBottom < TopDetectorLocationX))
-						{
-							UE_LOG(LogTemp, Warning, TEXT("ONSCREEN ON START: %s"), *LevelTrigger->GetActorLocation().ToString());
+						{							
 							TrySpawnSublevel(LevelTrigger);
 						}
 					}
 				}
-
-
-			}
-
-			// Check if the player is currently overlapping with a LevelTriggerBox and spawn it in.
-			/*TArray<AActor*> OverlappingActors;
-			PlayerRef->GetPawn()->GetOverlappingActors(OverlappingActors, ALevelTriggerBox::StaticClass());
-			for (int i = 0; i < OverlappingActors.Num(); i++)
-			{
-				ALevelTriggerBox* LevelTrigger = Cast<ALevelTriggerBox>(OverlappingActors[i]);
-				if (LevelTrigger != nullptr)
-				{
-					UE_LOG(LogTemp, Warning, TEXT("OVERLAPPING %i %s"), i, *OverlappingActors[i]->GetName());
-					TrySpawnSublevel(LevelTrigger);
-				}
-			}*/
-
-			// For whatever reason, setting this in the constructor messes with GetOverlappingActors.			
-			//TopSphereDetector->SetCollisionObjectType(DetectorCollisionChannel);			
-			//BottomSphereDetector->SetCollisionObjectType(DetectorCollisionChannel);
+			}			
 
 			//PrevCameraLocation = PlayerRef->GetPawn()->GetActorLocation();
 		}
@@ -144,13 +122,10 @@ void AChunkManager::Tick(float DeltaTime)
 				// TODO: Get and transmit actors to subsystems.
 				ULevel* Level = LoadingLevelsArray[i]->GetLoadedLevel();
 				if (Level != nullptr)
-				{
-					int Num = Level->Actors.Num();
-					UE_LOG(LogTemp, Warning, TEXT("%i"), Num);
-				}
-				
-				ChunkSubsystem->NotifySublevelLoaded(LoadingLevelsArray[i]->GetFName().ToString(), i);
-				LoadingLevelsArray[i] = nullptr;
+				{														
+					ChunkSubsystem->NotifySublevelLoaded(Level, LoadingLevelsArray[i]->GetFName().ToString(), i);
+					LoadingLevelsArray[i] = nullptr;
+				}								
 			}
 		}
 	}
@@ -374,8 +349,7 @@ void AChunkManager::SetDetectorLocations(const APlayerController* Player)
 }
 
 void AChunkManager::TrySpawnSublevel(ALevelTriggerBox* LevelTrigger)
-{
-	UE_LOG(LogTemp, Warning, TEXT("TRY SPAWN"));
+{	
 	bool IsLoaded = false;
 
 	// If there is no name, it's our first time spawning.
