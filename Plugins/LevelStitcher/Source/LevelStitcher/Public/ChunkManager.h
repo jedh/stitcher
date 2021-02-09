@@ -87,7 +87,4 @@ protected:
 	void SetDetectorLocations(const class APlayerController* Player);
 
 	void TrySpawnSublevel(class ALevelTriggerBox* LevelTrigger);
-	
-	UFUNCTION()
-	void LevelLoadingFinished();
 };

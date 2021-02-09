@@ -232,8 +232,7 @@ void AChunkManager::LoadLevelTriggerVolumes(const UChunkContainerDataAsset* Chun
 		float SpawnPositionX = ChunkContainerDataAsset->SublevelExtents.X * 2 * i;
 		FVector SpawnLocation = FVector(SpawnPositionX, 0.0f, -SpawnOffsetZ);
 
-		// Spawn chunk floor tiles.		
-		//AChunkFloorTile* FloorTile = World->SpawnActor<AChunkFloorTile>(SpawnLocation, FRotator::ZeroRotator);
+		// Spawn chunk floor tiles.				
 		FTransform FloorSpawnTransform(FRotator::ZeroRotator, SpawnLocation);
 		AChunkFloorTile* FloorTile = World->SpawnActorDeferred<AChunkFloorTile>(AChunkFloorTile::StaticClass(), FloorSpawnTransform);
 		if (FloorTile != nullptr)
@@ -248,8 +247,7 @@ void AChunkManager::LoadLevelTriggerVolumes(const UChunkContainerDataAsset* Chun
 
 		// Spawn the chunk trigger box. 
 		SpawnLocation.Z = 0.0f;
-		FTransform LevelTriggerSpawnTransform(FRotator::ZeroRotator, SpawnLocation);
-		//ALevelTriggerBox* ChunkTriggerBox = World->SpawnActor<ALevelTriggerBox>(SpawnLocation, FRotator::ZeroRotator);
+		FTransform LevelTriggerSpawnTransform(FRotator::ZeroRotator, SpawnLocation);		
 		ALevelTriggerBox* ChunkTriggerBox = World->SpawnActorDeferred<ALevelTriggerBox>(ALevelTriggerBox::StaticClass(), LevelTriggerSpawnTransform);
 		if (ChunkTriggerBox != nullptr)
 		{
@@ -305,37 +303,25 @@ void AChunkManager::SetDetectorProjectionDistances(const APlayerController* Play
 	// Get top distance.
 	FVector TopWorldPosition;
 	FVector TopWorldDirection;
-	Player->DeprojectScreenPositionToWorld(ViewportSize.X * 0.5f, 0.0f, TopWorldPosition, TopWorldDirection);
-	FHitResult TopHitResult;
-	if (GetWorld()->LineTraceSingleByChannel(
-		TopHitResult,
-		TopWorldPosition,
-		TopWorldPosition + (TopWorldDirection * 2000.0f),
-		FloorCollisionChannel))
-	{
-		ProjectionDistanceTop = TopHitResult.Distance;
-	}
+	Player->DeprojectScreenPositionToWorld(ViewportSize.X * 0.5f, 0.0f, TopWorldPosition, TopWorldDirection);	
+	FVector TopLineEnd = TopWorldPosition + (TopWorldDirection * 2000.0f);
+	FVector TopIntersection = FMath::LinePlaneIntersection(TopWorldPosition, TopLineEnd, FVector::ZeroVector, FVector(0.f, 0.f, 1.f));
+	ProjectionDistanceTop = FVector::Distance(TopWorldPosition, TopIntersection);	
 
 	// Get bottom distance.
 	FVector BottomWorldPosition;
 	FVector BottomWorldDirection;
 	Player->DeprojectScreenPositionToWorld(ViewportSize.X * 0.5f, ViewportSize.Y, BottomWorldPosition, BottomWorldDirection);
-	FHitResult BottomHitResult;
-	if (GetWorld()->LineTraceSingleByChannel(
-		BottomHitResult,
-		BottomWorldPosition,
-		BottomWorldPosition + (BottomWorldDirection * 2000.0f),
-		FloorCollisionChannel))
-	{
-		ProjectionDistanceBottom = BottomHitResult.Distance;
-	}
+	FVector BottomLineEnd = BottomWorldPosition + (BottomWorldDirection * 2000.0f);
+	FVector BottomIntersection = FMath::LinePlaneIntersection(BottomWorldPosition, BottomLineEnd, FVector::ZeroVector, FVector(0.f, 0.f, 1.f));
+	ProjectionDistanceBottom = FVector::Distance(BottomWorldPosition, BottomIntersection);	
 }
 
 void AChunkManager::SetDetectorLocations(const APlayerController* Player)
 {
 	FVector2D ViewportSize = GEngine->GameViewport->Viewport->GetSizeXY();
 
-	FVector TopWorldPosition;
+	FVector TopWorldPosition;	
 	FVector TopWorldDirection;
 	Player->DeprojectScreenPositionToWorld(ViewportSize.X * 0.5f, 0.0f, TopWorldPosition, TopWorldDirection);
 	FVector TopSphereLocation = TopWorldPosition + (TopWorldDirection * ProjectionDistanceTop);
@@ -355,13 +341,7 @@ void AChunkManager::TrySpawnSublevel(ALevelTriggerBox* LevelTrigger)
 	// If there is no name, it's our first time spawning.
 	if (LevelTrigger->SublevelInstanceName.IsEmpty())
 	{
-		// Generate sublevel name.
-		/*FString LevelName = "Sublevel";
-		LevelName += FString::FromInt(LevelTrigger->SublevelIndex);
-		LevelName += "_";
-		LevelName += FGuid::NewGuid().ToString();
-		LevelTrigger->SublevelInstanceName = LevelName;*/
-
+		// This naming is very specific to the UE4 level system, and shouldn't be modified.
 		FString LevelName = "LevelStreamingDynamic_";
 		LevelName += FString::FromInt(LevelInstansiatedCounter);
 
@@ -378,8 +358,7 @@ void AChunkManager::TrySpawnSublevel(ALevelTriggerBox* LevelTrigger)
 		{
 			LevelInstansiatedCounter++;
 			LevelTrigger->SublevelInstanceName = LoadedLevel->GetFName().ToString();
-			LoadingLevelsArray[LevelTrigger->SublevelIndex] = LoadedLevel;			
-			UE_LOG(LogTemp, Warning, TEXT("LOADING FROM INSTANCE: %s"), *LoadedLevel->GetFName().ToString());
+			LoadingLevelsArray[LevelTrigger->SublevelIndex] = LoadedLevel;						
 		}
 	}
 	else
@@ -389,23 +368,11 @@ void AChunkManager::TrySpawnSublevel(ALevelTriggerBox* LevelTrigger)
 		{
 			ULevelStreaming* LevelStreaming = UGameplayStatics::GetStreamingLevel(this, FName(LevelTrigger->SublevelInstanceName));
 			if (LevelStreaming != nullptr && !LevelStreaming->IsLevelLoaded() && !LevelStreaming->HasLoadRequestPending())
-			{
-				UE_LOG(LogTemp, Warning, TEXT("STREAMING %s"), *LevelStreaming->GetFName().ToString());
-				// Stream the existing sublevel.
-				// TODO: Move this Info object to a class variable.
+			{								
 				FLatentActionInfo Info;				
 				UGameplayStatics::LoadStreamLevel(GetWorld(), FName(LevelTrigger->SublevelInstanceName), true, false, Info);
 				LoadingLevelsArray[LevelTrigger->SublevelIndex] = LevelStreaming;
 			}
 		}
 	}
-
-	/*if (IsLoaded && ChunkSubsystem != nullptr)
-	{
-		ChunkSubsystem->NotifySublevelLoaded(LevelTrigger->SublevelInstanceName, LevelTrigger->SublevelIndex);
-	}*/
-}
-
-void AChunkManager::LevelLoadingFinished()
-{	
 }
