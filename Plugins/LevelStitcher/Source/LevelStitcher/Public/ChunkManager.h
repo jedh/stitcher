@@ -24,6 +24,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dimensions")
 	float WallBoundWidth;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dimensions")
+	FVector FloorDetectionOffset;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Collision Channels")
 	TEnumAsByte<ECollisionChannel> DetectorCollisionChannel;
 

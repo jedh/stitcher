@@ -35,7 +35,7 @@ AChunkManager::AChunkManager()
 	BottomSphereDetector->SetCollisionObjectType(DetectorCollisionChannel);
 	BottomSphereDetector->SetupAttachment(RootComponent);
 	BottomSphereDetector->OnComponentBeginOverlap.AddDynamic(this, &AChunkManager::OnBottomDetectorBeginOverlap);
-	BottomSphereDetector->OnComponentEndOverlap.AddDynamic(this, &AChunkManager::OnBottomDetectorEndOverlap);
+	BottomSphereDetector->OnComponentEndOverlap.AddDynamic(this, &AChunkManager::OnBottomDetectorEndOverlap);	
 }
 
 // Called when the game starts or when spawned
@@ -305,7 +305,7 @@ void AChunkManager::SetDetectorProjectionDistances(const APlayerController* Play
 	FVector TopWorldDirection;
 	Player->DeprojectScreenPositionToWorld(ViewportSize.X * 0.5f, 0.0f, TopWorldPosition, TopWorldDirection);	
 	FVector TopLineEnd = TopWorldPosition + (TopWorldDirection * 2000.0f);
-	FVector TopIntersection = FMath::LinePlaneIntersection(TopWorldPosition, TopLineEnd, FVector::ZeroVector, FVector(0.f, 0.f, 1.f));
+	FVector TopIntersection = FMath::LinePlaneIntersection(TopWorldPosition, TopLineEnd, FloorDetectionOffset, FVector(0.f, 0.f, 1.f));
 	ProjectionDistanceTop = FVector::Distance(TopWorldPosition, TopIntersection);	
 
 	// Get bottom distance.
@@ -313,7 +313,7 @@ void AChunkManager::SetDetectorProjectionDistances(const APlayerController* Play
 	FVector BottomWorldDirection;
 	Player->DeprojectScreenPositionToWorld(ViewportSize.X * 0.5f, ViewportSize.Y, BottomWorldPosition, BottomWorldDirection);
 	FVector BottomLineEnd = BottomWorldPosition + (BottomWorldDirection * 2000.0f);
-	FVector BottomIntersection = FMath::LinePlaneIntersection(BottomWorldPosition, BottomLineEnd, FVector::ZeroVector, FVector(0.f, 0.f, 1.f));
+	FVector BottomIntersection = FMath::LinePlaneIntersection(BottomWorldPosition, BottomLineEnd, FloorDetectionOffset, FVector(0.f, 0.f, 1.f));
 	ProjectionDistanceBottom = FVector::Distance(BottomWorldPosition, BottomIntersection);	
 }
 
