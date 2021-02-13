@@ -11,7 +11,9 @@ AChunkBoundCollider::AChunkBoundCollider()
 	PrimaryActorTick.bCanEverTick = false;
 
 	CollisionComp = CreateDefaultSubobject<UBoxComponent>(TEXT("BoxComp"));
-	CollisionComp->BodyInstance.SetCollisionProfileName("BlockAllDynamic");
+
+	// TODO: Set this via a parameter in case a game wants to override this.
+	//CollisionComp->BodyInstance.SetCollisionProfileName("BlockAllDynamic");
 	RootComponent = CollisionComp;
 }
 
@@ -31,5 +33,11 @@ void AChunkBoundCollider::Tick(float DeltaTime)
 void AChunkBoundCollider::SetBoundExtent(FVector InExtent)
 {
 	CollisionComp->SetBoxExtent(InExtent);
+}
+
+void AChunkBoundCollider::SetCollisionChannel(ECollisionChannel CollisionChannel)
+{	
+	CollisionComp->SetCollisionObjectType(CollisionChannel);
+	CollisionComp->SetCollisionResponseToAllChannels(ECR_Block);
 }
 

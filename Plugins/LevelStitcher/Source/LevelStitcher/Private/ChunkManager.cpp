@@ -25,15 +25,13 @@ AChunkManager::AChunkManager()
 	PrimaryActorTick.bCanEverTick = true;
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent"));
 
-	TopSphereDetector = CreateDefaultSubobject<UChunkSphereDetector>(TEXT("TopSphereDetector"));
-	TopSphereDetector->SetCollisionObjectType(DetectorCollisionChannel);
-	TopSphereDetector->SetupAttachment(RootComponent);
+	TopSphereDetector = CreateDefaultSubobject<UChunkSphereDetector>(TEXT("TopSphereDetector"));	
+	TopSphereDetector->SetupAttachment(RootComponent);		
 	TopSphereDetector->OnComponentBeginOverlap.AddDynamic(this, &AChunkManager::OnTopDetectorBeginOverlap);
 	TopSphereDetector->OnComponentEndOverlap.AddDynamic(this, &AChunkManager::OnTopDetectorEndOverlap);
 
-	BottomSphereDetector = CreateDefaultSubobject<UChunkSphereDetector>(TEXT("BottomSphereDetector"));
-	BottomSphereDetector->SetCollisionObjectType(DetectorCollisionChannel);
-	BottomSphereDetector->SetupAttachment(RootComponent);
+	BottomSphereDetector = CreateDefaultSubobject<UChunkSphereDetector>(TEXT("BottomSphereDetector"));	
+	BottomSphereDetector->SetupAttachment(RootComponent);	
 	BottomSphereDetector->OnComponentBeginOverlap.AddDynamic(this, &AChunkManager::OnBottomDetectorBeginOverlap);
 	BottomSphereDetector->OnComponentEndOverlap.AddDynamic(this, &AChunkManager::OnBottomDetectorEndOverlap);	
 }
@@ -42,6 +40,14 @@ AChunkManager::AChunkManager()
 void AChunkManager::BeginPlay()
 {
 	Super::BeginPlay();
+
+	// Set up the collisions and responses at runtime always, as we want this to be dynamic per project.
+	TopSphereDetector->SetCollisionObjectType(DetectorCollisionChannel);
+	TopSphereDetector->SetCollisionResponseToAllChannels(ECR_Ignore);
+	TopSphereDetector->SetCollisionResponseToChannel(LevelTriggerCollisionChannel, ECR_Overlap);
+	BottomSphereDetector->SetCollisionObjectType(DetectorCollisionChannel);
+	BottomSphereDetector->SetCollisionResponseToAllChannels(ECR_Ignore);
+	BottomSphereDetector->SetCollisionResponseToChannel(LevelTriggerCollisionChannel, ECR_Overlap);
 
 	int32 LevelArraySize = 0;
 
@@ -236,13 +242,13 @@ void AChunkManager::LoadLevelTriggerVolumes(const UChunkContainerDataAsset* Chun
 		FTransform FloorSpawnTransform(FRotator::ZeroRotator, SpawnLocation);
 		AChunkFloorTile* FloorTile = World->SpawnActorDeferred<AChunkFloorTile>(AChunkFloorTile::StaticClass(), FloorSpawnTransform);
 		if (FloorTile != nullptr)
-		{
-			FloorTile->SetFloorCollisionChannel(FloorCollisionChannel);
+		{			
 			FVector FloorExtents = ChunkContainerDataAsset->SublevelExtents;
 			FloorExtents.Z = SpawnOffsetZ;
 			FloorTile->SetFloorExtent(FloorExtents);
 
 			UGameplayStatics::FinishSpawningActor(FloorTile, FloorSpawnTransform);
+			FloorTile->SetFloorCollisionChannel(FloorCollisionChannel);
 		}
 
 		// Spawn the chunk trigger box. 
@@ -271,12 +277,14 @@ void AChunkManager::LoadLevelTriggerVolumes(const UChunkContainerDataAsset* Chun
 		FVector LeftColliderPosition = FVector(SpawnPositionX, LeftColliderPositionY, 0.0f);
 		AChunkBoundCollider* LeftCollider = World->SpawnActor<AChunkBoundCollider>(LeftColliderPosition, FRotator::ZeroRotator);
 		LeftCollider->SetBoundExtent(SideColliderExtent);
+		LeftCollider->SetCollisionChannel(LevelBoundsCollisionChannel);
 
 		// Spawn right level bounds collider.
 		float RightColliderPositionY = WallBoundWidth + ChunkContainerDataAsset->SublevelExtents.Y;
 		FVector RightColliderPosition = FVector(SpawnPositionX, RightColliderPositionY, 0.0f);
 		AChunkBoundCollider* RightCollider = World->SpawnActor<AChunkBoundCollider>(RightColliderPosition, FRotator::ZeroRotator);
 		RightCollider->SetBoundExtent(SideColliderExtent);
+		RightCollider->SetCollisionChannel(LevelBoundsCollisionChannel);
 	}
 
 	FVector EndColliderExtent = ChunkContainerDataAsset->SublevelExtents;
@@ -288,12 +296,14 @@ void AChunkManager::LoadLevelTriggerVolumes(const UChunkContainerDataAsset* Chun
 	FVector TopColliderPosition = FVector(TopColliderPositionX, 0.0f, 0.0f);
 	AChunkBoundCollider* TopCollider = World->SpawnActor<AChunkBoundCollider>(TopColliderPosition, FRotator::ZeroRotator);
 	TopCollider->SetBoundExtent(EndColliderExtent);
+	TopCollider->SetCollisionChannel(LevelBoundsCollisionChannel);
 
 	// Spawn bottom collider for the level.
 	float BottomColliderPositionX = -ChunkContainerDataAsset->SublevelExtents.X;
 	FVector BottomColliderPosition = FVector(BottomColliderPositionX, 0.0f, 0.0f);
 	AChunkBoundCollider* BottomCollider = World->SpawnActor<AChunkBoundCollider>(BottomColliderPosition, FRotator::ZeroRotator);
 	BottomCollider->SetBoundExtent(EndColliderExtent);
+	BottomCollider->SetCollisionChannel(LevelBoundsCollisionChannel);
 }
 
 void AChunkManager::SetDetectorProjectionDistances(const APlayerController* Player)

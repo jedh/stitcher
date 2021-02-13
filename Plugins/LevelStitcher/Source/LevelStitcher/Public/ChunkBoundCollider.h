@@ -26,6 +26,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Size")
 	void SetBoundExtent(FVector InExtent);
 
+	UFUNCTION(BlueprintCallable, Category = "Collision")
+	void SetCollisionChannel(ECollisionChannel CollisionChannel);
+
 protected:
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;

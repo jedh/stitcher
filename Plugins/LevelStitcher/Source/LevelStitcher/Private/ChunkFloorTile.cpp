@@ -22,5 +22,6 @@ void AChunkFloorTile::SetFloorExtent(FVector InExtent)
 void AChunkFloorTile::SetFloorCollisionChannel(ECollisionChannel CollisionChannel)
 {
 	CollisionComp->SetCollisionObjectType(CollisionChannel);
+	CollisionComp->SetCollisionResponseToAllChannels(ECR_Block);
 }
 
