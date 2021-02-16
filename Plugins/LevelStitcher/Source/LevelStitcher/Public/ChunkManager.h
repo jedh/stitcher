@@ -86,11 +86,13 @@ protected:
 	UFUNCTION()
 	void OnBottomDetectorEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
-	void LoadLevelTriggerVolumes(const class UChunkContainerDataAsset* ChunkContainerDataAsset);
+	void LoadLevelTriggerVolumes(const class UChunkContainerDataAsset* ChunkContainerDataAsset, int SublevelIndexOffset = 0);
 
 	void SetDetectorProjectionDistances(const class APlayerController* Player);
 
 	void SetDetectorLocations(const class APlayerController* Player);
 
-	void TrySpawnSublevel(class ALevelTriggerBox* LevelTrigger);
+	void SpawnOnScreenSublevels(const class UChunkSphereDetector* TopDetector, const class UChunkSphereDetector* BottomDetector);
+
+	virtual void TrySpawnSublevel(class ALevelTriggerBox* LevelTrigger);
 };

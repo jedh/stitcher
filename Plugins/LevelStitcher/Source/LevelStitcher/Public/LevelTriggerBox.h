@@ -17,13 +17,13 @@ class LEVELSTITCHER_API ALevelTriggerBox : public ATriggerBox
 public:
 	ALevelTriggerBox();
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Levels")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "Levels")
 	TSoftObjectPtr<UWorld> Sublevel;
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Levels")
 	FString SublevelInstanceName;
 
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "Levels")
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadWrite, Category = "Levels")
 	int SublevelIndex;
 
 protected:	
