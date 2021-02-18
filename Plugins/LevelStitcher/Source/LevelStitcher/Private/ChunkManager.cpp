@@ -52,18 +52,18 @@ void AChunkManager::BeginPlay()
 	BottomSphereDetector->SetCollisionResponseToChannel(LevelTriggerCollisionChannel, ECR_Overlap);
 
 	// Do a pass on all preloaded and potential LevelTriggers in order to build the levevl loading array.
-	int32 LevelArraySize = 0;	
+	int32 LevelArraySize = 0;
 	for (TActorIterator<ALevelTriggerBox> TriggerItr(GetWorld()); TriggerItr; ++TriggerItr)
-	{		
+	{
 		LevelArraySize++;
 	}
 
 	if (LevelChunkContainerDataAsset != nullptr)
-	{		
+	{
 		LevelArraySize += LevelChunkContainerDataAsset->SublevelMaps.Num();
 	}
 
-	LoadingLevelsArray.Init(nullptr, LevelArraySize);	
+	LoadingLevelsArray.Init(nullptr, LevelArraySize);
 
 	FTimerHandle Handle;
 	// We need a slight delay in order for the camera to be ready for projections.
@@ -76,7 +76,7 @@ void AChunkManager::BeginPlay()
 
 			// Load all in level trigger volumes.
 			for (TActorIterator<ALevelTriggerBox> TriggerItr(GetWorld()); TriggerItr; ++TriggerItr)
-			{				
+			{
 				ALevelTriggerBox* LevelTrigger = *TriggerItr;
 				LevelTrigger->SublevelIndex = LevelIndex;
 				LevelTrigger->GetCollisionComponent()->SetCollisionObjectType(LevelTriggerCollisionChannel);
@@ -92,38 +92,10 @@ void AChunkManager::BeginPlay()
 				int SublevelIndexOffset = LevelIndex;
 				LoadLevelTriggerVolumes(LevelChunkContainerDataAsset, SublevelIndexOffset);
 			}
-									
+
 			SetDetectorProjectionDistances(PlayerRef);
 			SetDetectorLocations(PlayerRef);
 			SpawnOnScreenSublevels(TopSphereDetector, BottomSphereDetector);
-
-			////Check for all triggers between the detectors and spawn them.
-			//for (TActorIterator<ALevelTriggerBox> TriggerItr(GetWorld()); TriggerItr; ++TriggerItr)
-			//{
-			//	ALevelTriggerBox* LevelTrigger = *TriggerItr;
-			//	if (TopSphereDetector->IsOverlappingActor(LevelTrigger) || BottomSphereDetector->IsOverlappingActor(LevelTrigger))
-			//	{
-			//		TrySpawnSublevel(LevelTrigger);
-			//	}
-			//	else
-			//	{
-			//		UBoxComponent* BoxCollsion = Cast<UBoxComponent>(LevelTrigger->GetCollisionComponent());
-			//		if (BoxCollsion != nullptr)
-			//		{
-			//			float LevelTriggerLocationX = LevelTrigger->GetActorLocation().X;
-			//			float LevelTriggerExtentX = BoxCollsion->GetScaledBoxExtent().X;
-			//			float LevelTriggerTop = LevelTriggerLocationX + LevelTriggerExtentX;
-			//			float LevelTriggerBottom = LevelTriggerLocationX - LevelTriggerExtentX;
-			//			float TopDetectorLocationX = TopSphereDetector->GetComponentLocation().X;
-			//			float BottomDetectorLocationX = BottomSphereDetector->GetComponentLocation().X;
-			//			if ((LevelTriggerTop <= TopDetectorLocationX && LevelTriggerTop > BottomDetectorLocationX) ||
-			//				(LevelTriggerBottom >= BottomDetectorLocationX && LevelTriggerBottom < TopDetectorLocationX))
-			//			{
-			//				TrySpawnSublevel(LevelTrigger);
-			//			}
-			//		}
-			//	}
-			//}
 
 			//PrevCameraLocation = PlayerRef->GetPawn()->GetActorLocation();
 		}
@@ -149,7 +121,6 @@ void AChunkManager::Tick(float DeltaTime)
 		{
 			if (LoadingLevelsArray[i]->IsLevelLoaded() && ChunkSubsystem != nullptr)
 			{
-				// TODO: Get and transmit actors to subsystems.
 				ULevel* Level = LoadingLevelsArray[i]->GetLoadedLevel();
 				if (Level != nullptr)
 				{
@@ -375,7 +346,7 @@ void AChunkManager::SpawnOnScreenSublevels(const UChunkSphereDetector* TopDetect
 	{
 		ALevelTriggerBox* LevelTrigger = *TriggerItr;
 		if (TopDetector->IsOverlappingActor(LevelTrigger) || BottomDetector->IsOverlappingActor(LevelTrigger))
-		{
+		{			
 			TrySpawnSublevel(LevelTrigger);
 		}
 		else
@@ -391,7 +362,7 @@ void AChunkManager::SpawnOnScreenSublevels(const UChunkSphereDetector* TopDetect
 				float BottomDetectorLocationX = BottomDetector->GetComponentLocation().X;
 				if ((LevelTriggerTop <= TopDetectorLocationX && LevelTriggerTop > BottomDetectorLocationX) ||
 					(LevelTriggerBottom >= BottomDetectorLocationX && LevelTriggerBottom < TopDetectorLocationX))
-				{
+				{					
 					TrySpawnSublevel(LevelTrigger);
 				}
 			}
@@ -404,6 +375,7 @@ void AChunkManager::TrySpawnSublevel(ALevelTriggerBox* LevelTrigger)
 	bool IsLoaded = false;
 
 	// If there is no name, it's our first time spawning.
+	// We can instantiate multiple of these at once, as opposed to streaming which needs to be queued.
 	if (LevelTrigger->SublevelInstanceName.IsEmpty())
 	{
 		// This naming is very specific to the UE4 level system, and shouldn't be modified.		
@@ -430,13 +402,14 @@ void AChunkManager::TrySpawnSublevel(ALevelTriggerBox* LevelTrigger)
 	{
 		// Make sure the level isn't streaming or loading.
 		if (LoadingLevelsArray[LevelTrigger->SublevelIndex] == nullptr)
-		{			
+		{
 			ULevelStreaming* LevelStreaming = UGameplayStatics::GetStreamingLevel(this, FName(LevelTrigger->SublevelInstanceName));
+
 			if (LevelStreaming != nullptr && !LevelStreaming->IsLevelLoaded() && !LevelStreaming->HasLoadRequestPending())
-			{
-				FLatentActionInfo Info;
-				UGameplayStatics::LoadStreamLevel(GetWorld(), FName(LevelTrigger->SublevelInstanceName), true, false, Info);
-				LoadingLevelsArray[LevelTrigger->SublevelIndex] = LevelStreaming;
+			{				
+				LevelStreaming->SetShouldBeLoaded(true);
+				LevelStreaming->SetShouldBeVisible(true);
+				LoadingLevelsArray[LevelTrigger->SublevelIndex] = LevelStreaming;				
 			}
 		}
 	}

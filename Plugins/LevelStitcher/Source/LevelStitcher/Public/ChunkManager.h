@@ -60,6 +60,8 @@ protected:
 
 	TArray<class ULevelStreaming*> LoadingLevelsArray;
 
+	FLatentActionInfo LevelStreamingInfo;
+
 public:
 	// Called every frame
 	virtual void Tick(float DeltaTime) override;
