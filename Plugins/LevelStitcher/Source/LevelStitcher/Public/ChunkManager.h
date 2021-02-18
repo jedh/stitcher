@@ -58,9 +58,7 @@ protected:
 
 	int LevelInstansiatedCounter = 0;
 
-	TArray<class ULevelStreaming*> LoadingLevelsArray;
-
-	FLatentActionInfo LevelStreamingInfo;
+	TArray<class ULevelStreaming*> LoadingLevelsArray;	
 
 public:
 	// Called every frame
