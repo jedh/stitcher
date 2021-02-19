@@ -14,6 +14,11 @@ void UChunkWorldSubsystem::Deinitialize()
 
 }
 
+void UChunkWorldSubsystem::NotifyInitializationComplete()
+{
+	OnInitializationComplete.Broadcast();
+}
+
 void UChunkWorldSubsystem::NotifySublevelLoaded(ULevel* Sublevel, FString SublevelInstanceName, int SublevelIndex)
 {	
 	TArray<AActor*> SublevelActors = Sublevel->Actors;

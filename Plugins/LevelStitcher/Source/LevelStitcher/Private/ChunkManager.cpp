@@ -98,8 +98,10 @@ void AChunkManager::BeginPlay()
 			SpawnOnScreenSublevels(TopSphereDetector, BottomSphereDetector);
 
 			//PrevCameraLocation = PlayerRef->GetPawn()->GetActorLocation();
+
+			ChunkSubsystem->NotifyInitializationComplete();
 		}
-		}, 0.33f, false);
+	}, 0.33f, false);
 }
 
 // Called every frame
